@@ -25,6 +25,8 @@ uv run uvicorn app.main:app --reload
 The API is available at `http://127.0.0.1:8000`.
 
 - Health check: `GET /api/v1/health`
+- Register therapist: `POST /api/v1/auth/register`
+- Login therapist: `POST /api/v1/auth/login`
 - Swagger UI: `http://127.0.0.1:8000/docs`
 - OpenAPI schema: `http://127.0.0.1:8000/openapi.json`
 
@@ -37,8 +39,24 @@ uv run ruff check .
 ## Structure
 
 ```text
-app/
-  api/          HTTP routing and API versioning
-  core/         Configuration and shared infrastructure
-  features/     Feature modules such as dashboard, bookings, and patients
+  app/
+    api/          HTTP routing and API versioning
+  core/         Configuration and database infrastructure
+  features/     Feature modules such as auth, dashboard, bookings, and patients
+  migrations/   Versioned PostgreSQL schema migrations
+```
+
+## PostgreSQL
+
+The application uses SQLAlchemy Core with Psycopg 3; it does not use an ORM.
+The local connection URL uses the existing `postgres` role:
+
+```env
+DATABASE_URL=postgresql+psycopg://postgres@localhost/physioghar?sslmode=disable
+```
+
+Run migrations with:
+
+```bash
+uv run alembic upgrade head
 ```

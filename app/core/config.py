@@ -8,6 +8,12 @@ class Settings(BaseSettings):
     app_name: str = "PhysioGhar API"
     app_version: str = "0.1.0"
     environment: str = "development"
+    database_url: str = (
+        "postgresql+psycopg://postgres@localhost/physioghar?sslmode=disable"
+    )
+    jwt_secret_key: str = "change-this-development-secret"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60
     cors_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:3000"],
     )
