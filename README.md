@@ -19,10 +19,12 @@ uv sync
 ## Run the API
 
 ```bash
-uv run uvicorn app.main:app --reload
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-The API is available at `http://127.0.0.1:8000`.
+The API is available on all network interfaces at port `8000`. For a physical
+device connected to the same network, use the development machine's LAN IP,
+for example `http://10.235.75.138:8000`.
 
 - Health check: `GET /api/v1/health`
 - Register therapist: `POST /api/v1/auth/register`

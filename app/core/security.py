@@ -3,8 +3,12 @@ from typing import Any
 
 import bcrypt
 import jwt
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import get_settings
+
+bearer_scheme = HTTPBearer()
 
 
 def hash_password(password: str) -> str:
@@ -38,3 +42,26 @@ def create_access_token(*, subject: str, user_type: str) -> str:
         settings.jwt_secret_key,
         algorithm=settings.jwt_algorithm,
     )
+
+
+async def get_current_therapist_id(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+) -> int:
+    settings = get_settings()
+    unauthorized = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or expired authentication token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        payload = jwt.decode(
+            credentials.credentials,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm],
+        )
+        if payload.get("user_type") != "therapist":
+            raise unauthorized
+        return int(payload["sub"])
+    except (KeyError, TypeError, ValueError, jwt.InvalidTokenError) as error:
+        raise unauthorized from error
