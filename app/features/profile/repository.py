@@ -53,7 +53,6 @@ class ProfileRepository:
             {"therapist_id": therapist_id, **request.model_dump()},
         )
         profile = dict(result.mappings().one())
-        await self._update_therapist(connection, therapist_id, request)
         return await self._with_therapist(connection, profile, therapist_id)
 
     async def update(
@@ -85,33 +84,10 @@ class ProfileRepository:
         row = result.mappings().first()
         if not row:
             return None
-        await self._update_therapist(connection, therapist_id, request)
         return await self._with_therapist(
             connection,
             dict(row),
             therapist_id,
-        )
-
-    async def _update_therapist(
-        self,
-        connection: AsyncConnection,
-        therapist_id: int,
-        request: ProfileRequest,
-    ) -> None:
-        await connection.execute(
-            text(
-                """
-                UPDATE therapists
-                SET name = COALESCE(:name, name),
-                    email = COALESCE(:email, email)
-                WHERE id = :therapist_id
-                """
-            ),
-            {
-                "therapist_id": therapist_id,
-                "name": request.name,
-                "email": request.email,
-            },
         )
 
     async def _with_therapist(

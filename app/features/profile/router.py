@@ -39,17 +39,13 @@ async def _read_profile_image(image: UploadFile | None) -> tuple[bytes | None, s
 
 
 async def profile_form(
-    name: Annotated[str | None, Form()] = None,
-    email: Annotated[str | None, Form()] = None,
     profile_image_url: Annotated[str | None, Form()] = None,
-    phone: Annotated[str, Form()] = "",
+    phone: Annotated[str | None, Form()] = None,
     experience_years: Annotated[int, Form()] = 0,
     specialization: Annotated[str, Form()] = "",
     address: Annotated[str, Form()] = "",
 ) -> ProfileRequest:
     return ProfileRequest(
-        name=name,
-        email=email,
         profile_image_url=profile_image_url,
         phone=phone,
         experience_years=experience_years,

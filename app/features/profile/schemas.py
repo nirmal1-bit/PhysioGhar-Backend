@@ -4,10 +4,8 @@ from pydantic import BaseModel, EmailStr, Field
 
 
 class ProfileRequest(BaseModel):
-    name: str | None = Field(default=None, min_length=2, max_length=120)
-    email: EmailStr | None = None
     profile_image_url: str | None = Field(default=None, max_length=2048)
-    phone: str = Field(min_length=1, max_length=32)
+    phone: str | None = Field(default=None, max_length=32)
     experience_years: int = Field(ge=0)
     specialization: str = Field(min_length=1, max_length=255)
     address: str = Field(min_length=1, max_length=500)
