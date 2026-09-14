@@ -13,7 +13,12 @@ class Settings(BaseSettings):
     )
     jwt_secret_key: str = "change-this-development-secret"
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60
+    # Thirty days, expressed in minutes for the JWT expiry calculation.
+    access_token_expire_minutes: int = 43_200
+    cloudinary_cloud_name: str | None = None
+    cloudinary_api_key: str | None = None
+    cloudinary_api_secret: str | None = None
+    cloudinary_upload_folder: str = "physioghar/profiles"
     cors_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:3000"],
     )

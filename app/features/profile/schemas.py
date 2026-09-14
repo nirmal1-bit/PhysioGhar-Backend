@@ -1,9 +1,11 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 
 class ProfileRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=120)
+    email: EmailStr | None = None
     profile_image_url: str | None = Field(default=None, max_length=2048)
     phone: str = Field(min_length=1, max_length=32)
     experience_years: int = Field(ge=0)
@@ -14,5 +16,7 @@ class ProfileRequest(BaseModel):
 class ProfileResponse(ProfileRequest):
     id: int
     therapist_id: int
+    name: str
+    email: EmailStr
     created_at: datetime
     updated_at: datetime
