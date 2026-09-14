@@ -119,3 +119,41 @@ class BookingService:
                     "Booking was not found or the status transition is invalid"
                 )
         return booking
+
+    async def reschedule(
+        self,
+        therapist_id: int,
+        booking_id: int,
+        new_slot_id: int,
+    ) -> dict[str, Any]:
+        async with get_engine().begin() as connection:
+            booking = await self.repository.reschedule(
+                connection,
+                therapist_id,
+                booking_id,
+                new_slot_id,
+            )
+            if not booking:
+                raise BookingNotFoundError(
+                    "Booking or target slot was not found, available, or valid"
+                )
+        return booking
+
+    async def update_notes(
+        self,
+        therapist_id: int,
+        booking_id: int,
+        notes: str,
+    ) -> dict[str, Any]:
+        async with get_engine().begin() as connection:
+            booking = await self.repository.update_notes(
+                connection,
+                therapist_id,
+                booking_id,
+                notes,
+            )
+            if not booking:
+                raise BookingNotFoundError(
+                    "Booking was not found or does not accept therapist notes"
+                )
+        return booking

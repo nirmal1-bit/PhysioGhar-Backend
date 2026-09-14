@@ -48,9 +48,18 @@ class BookingResponse(BaseModel):
     slot_date: date
     start_time: time
     end_time: time
+    therapist_notes: str | None
     created_at: datetime
     updated_at: datetime
 
 
 class BookingStatusRequest(BaseModel):
     status: TherapistBookingStatus
+
+
+class RescheduleBookingRequest(BaseModel):
+    slot_id: int = Field(gt=0)
+
+
+class BookingNotesRequest(BaseModel):
+    notes: str = Field(max_length=5000)

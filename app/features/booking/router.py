@@ -7,9 +7,11 @@ from app.core.security import get_current_therapist_id
 from app.features.booking.schemas import (
     AvailableSlotResponse,
     AvailableTherapistResponse,
+    BookingNotesRequest,
     BookingResponse,
     BookingStatusRequest,
     CreateBookingRequest,
+    RescheduleBookingRequest,
 )
 from app.features.booking.service import (
     BookingNotFoundError,
@@ -88,6 +90,46 @@ async def update_booking_status(
             therapist_id,
             booking_id,
             request.status,
+        )
+    except BookingNotFoundError as error:
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={"detail": str(error)},
+        )
+    return BookingResponse.model_validate(booking)
+
+
+@router.patch("/{booking_id}/reschedule", response_model=BookingResponse)
+async def reschedule_booking(
+    booking_id: int,
+    request: RescheduleBookingRequest,
+    therapist_id: int = Depends(get_current_therapist_id),
+) -> BookingResponse | JSONResponse:
+    try:
+        booking = await BookingService().reschedule(
+            therapist_id,
+            booking_id,
+            request.slot_id,
+        )
+    except BookingNotFoundError as error:
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={"detail": str(error)},
+        )
+    return BookingResponse.model_validate(booking)
+
+
+@router.patch("/{booking_id}/notes", response_model=BookingResponse)
+async def update_booking_notes(
+    booking_id: int,
+    request: BookingNotesRequest,
+    therapist_id: int = Depends(get_current_therapist_id),
+) -> BookingResponse | JSONResponse:
+    try:
+        booking = await BookingService().update_notes(
+            therapist_id,
+            booking_id,
+            request.notes,
         )
     except BookingNotFoundError as error:
         return JSONResponse(
