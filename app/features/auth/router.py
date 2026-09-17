@@ -4,8 +4,8 @@ from fastapi.responses import JSONResponse
 from app.features.auth.schemas import (
     LoginRequest,
     RegisterRequest,
-    TherapistResponse,
     TokenResponse,
+    UserResponse,
 )
 from app.features.auth.service import (
     AuthService,
@@ -19,10 +19,10 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post(
     "/register",
-    response_model=TherapistResponse,
+    response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
 )
-async def register(request: RegisterRequest) -> TherapistResponse:
+async def register(request: RegisterRequest) -> UserResponse:
     try:
         therapist = await AuthService().register(request)
     except RegistrationConflictError as error:
@@ -30,7 +30,7 @@ async def register(request: RegisterRequest) -> TherapistResponse:
             status_code=status.HTTP_409_CONFLICT,
             content={"detail": str(error)},
         )
-    return TherapistResponse.model_validate(therapist)
+    return UserResponse.model_validate(therapist)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -48,4 +48,5 @@ async def login(request: LoginRequest) -> TokenResponse:
             status_code=status.HTTP_403_FORBIDDEN,
             content={"detail": str(error)},
         )
-    return TokenResponse(access_token=token)
+    access_token, user_type = token
+    return TokenResponse(access_token=access_token, user_type=user_type)

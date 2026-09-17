@@ -15,7 +15,7 @@ class AuthRepository:
                 """
                 SELECT id, email, name, username, password_hash, user_type,
                        is_active, created_at
-                FROM therapists
+                FROM users
                 WHERE LOWER(email) = LOWER(:email)
                 """
             ),
@@ -34,7 +34,7 @@ class AuthRepository:
                 """
                 SELECT id, email, name, username, password_hash, user_type,
                        is_active, created_at
-                FROM therapists
+                FROM users
                 WHERE LOWER(username) = LOWER(:username)
                 """
             ),
@@ -43,7 +43,7 @@ class AuthRepository:
         row = result.mappings().first()
         return dict(row) if row else None
 
-    async def create_therapist(
+    async def create_user(
         self,
         connection: AsyncConnection,
         *,
@@ -51,12 +51,17 @@ class AuthRepository:
         name: str,
         username: str,
         password_hash: str,
+        user_type: str,
     ) -> dict[str, Any]:
         result = await connection.execute(
             text(
                 """
-                INSERT INTO therapists (email, name, username, password_hash)
-                VALUES (:email, :name, :username, :password_hash)
+                INSERT INTO users (
+                    email, name, username, password_hash, user_type
+                )
+                VALUES (
+                    :email, :name, :username, :password_hash, :user_type
+                )
                 RETURNING id, email, name, username, user_type,
                           is_active, created_at
                 """
@@ -66,6 +71,7 @@ class AuthRepository:
                 "name": name,
                 "username": username,
                 "password_hash": password_hash,
+                "user_type": user_type,
             },
         )
         return dict(result.mappings().one())

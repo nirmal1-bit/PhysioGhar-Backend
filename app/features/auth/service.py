@@ -38,19 +38,20 @@ class AuthService:
                 raise RegistrationConflictError("Username is already taken")
 
             try:
-                return await self.repository.create_therapist(
+                return await self.repository.create_user(
                     connection,
                     email=email,
                     name=request.name.strip(),
                     username=username,
                     password_hash=hash_password(request.password),
+                    user_type=request.user_type,
                 )
             except IntegrityError as error:
                 raise RegistrationConflictError(
                     "Email or username is already registered"
                 ) from error
 
-    async def login(self, request: LoginRequest) -> str:
+    async def login(self, request: LoginRequest) -> tuple[str, str]:
         async with get_engine().connect() as connection:
             therapist = await self.repository.find_by_email(
                 connection,
@@ -65,7 +66,8 @@ class AuthService:
         if not therapist["is_active"]:
             raise InactiveAccountError("This account is inactive")
 
-        return create_access_token(
+        token = create_access_token(
             subject=str(therapist["id"]),
             user_type=therapist["user_type"],
         )
+        return token, therapist["user_type"]
