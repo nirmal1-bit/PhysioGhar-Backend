@@ -1,14 +1,13 @@
 """create therapist profiles
 
 Revision ID: 0002_create_profiles
-Revises: 0001_create_therapists
-Create Date: 2026-09-13
+Revises: 0001_create_users
 """
 
 from alembic import op
 
 revision = "0002_create_profiles"
-down_revision = "0001_create_therapists"
+down_revision = "0001_create_users"
 branch_labels = None
 depends_on = None
 
@@ -19,9 +18,9 @@ def upgrade() -> None:
         CREATE TABLE profiles (
             id BIGSERIAL PRIMARY KEY,
             therapist_id BIGINT NOT NULL UNIQUE
-                REFERENCES therapists(id) ON DELETE CASCADE,
+                REFERENCES users(id) ON DELETE CASCADE,
             profile_image_url TEXT,
-            phone VARCHAR(32) NOT NULL,
+            phone VARCHAR(32),
             experience_years INTEGER NOT NULL,
             specialization VARCHAR(255) NOT NULL,
             address TEXT NOT NULL,

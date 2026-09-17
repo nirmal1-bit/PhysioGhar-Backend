@@ -1,8 +1,7 @@
-"""create therapist availability and schedule slots
+"""create recurring therapist availability
 
 Revision ID: 0003_create_schedule
 Revises: 0002_create_profiles
-Create Date: 2026-09-13
 """
 
 from alembic import op
@@ -19,7 +18,7 @@ def upgrade() -> None:
         CREATE TABLE therapist_availability (
             id BIGSERIAL PRIMARY KEY,
             therapist_id BIGINT NOT NULL UNIQUE
-                REFERENCES therapists(id) ON DELETE CASCADE,
+                REFERENCES users(id) ON DELETE CASCADE,
             is_available BOOLEAN NOT NULL DEFAULT TRUE,
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
@@ -30,26 +29,28 @@ def upgrade() -> None:
         CREATE TABLE schedule_slots (
             id BIGSERIAL PRIMARY KEY,
             therapist_id BIGINT NOT NULL
-                REFERENCES therapists(id) ON DELETE CASCADE,
-            slot_date DATE NOT NULL,
+                REFERENCES users(id) ON DELETE CASCADE,
+            day_of_week SMALLINT NOT NULL,
             start_time TIME NOT NULL,
             end_time TIME NOT NULL,
             status VARCHAR(16) NOT NULL DEFAULT 'open',
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            CONSTRAINT schedule_slots_day_check
+                CHECK (day_of_week BETWEEN 0 AND 6),
             CONSTRAINT schedule_slots_time_check
                 CHECK (end_time > start_time),
             CONSTRAINT schedule_slots_status_check
-                CHECK (status IN ('open', 'booked', 'blocked')),
+                CHECK (status IN ('open', 'blocked')),
             CONSTRAINT schedule_slots_unique_time
-                UNIQUE (therapist_id, slot_date, start_time, end_time)
+                UNIQUE (therapist_id, day_of_week, start_time, end_time)
         )
         """
     )
     op.execute(
         """
-        CREATE INDEX schedule_slots_therapist_date_index
-        ON schedule_slots (therapist_id, slot_date)
+        CREATE INDEX schedule_slots_therapist_day_index
+        ON schedule_slots (therapist_id, day_of_week)
         """
     )
 

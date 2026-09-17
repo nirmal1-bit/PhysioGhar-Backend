@@ -110,6 +110,7 @@ async def reschedule_booking(
             therapist_id,
             booking_id,
             request.slot_id,
+            request.slot_date,
         )
     except BookingNotFoundError as error:
         return JSONResponse(

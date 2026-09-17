@@ -19,7 +19,7 @@ class ProfileRepository:
                        p.profile_image_url, p.phone, p.experience_years,
                        p.specialization, p.address, p.created_at, p.updated_at
                 FROM profiles p
-                JOIN therapists t ON t.id = p.therapist_id
+                JOIN users t ON t.id = p.therapist_id
                 WHERE p.therapist_id = :therapist_id
                 """
             ),
@@ -100,7 +100,7 @@ class ProfileRepository:
             text(
                 """
                 SELECT name, email
-                FROM therapists
+                FROM users
                 WHERE id = :therapist_id
                 """
             ),

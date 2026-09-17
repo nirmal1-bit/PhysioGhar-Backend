@@ -125,6 +125,7 @@ class BookingService:
         therapist_id: int,
         booking_id: int,
         new_slot_id: int,
+        new_slot_date: date,
     ) -> dict[str, Any]:
         async with get_engine().begin() as connection:
             booking = await self.repository.reschedule(
@@ -132,6 +133,7 @@ class BookingService:
                 therapist_id,
                 booking_id,
                 new_slot_id,
+                new_slot_date,
             )
             if not booking:
                 raise BookingNotFoundError(

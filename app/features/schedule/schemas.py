@@ -17,7 +17,7 @@ class AvailabilityRequest(BaseModel):
 
 
 class CreateSlotRequest(BaseModel):
-    slot_date: date
+    day_of_week: int = Field(ge=0, le=6)
     start_time: time
     end_time: time
 
@@ -35,6 +35,7 @@ class UpdateSlotStatusRequest(BaseModel):
 class ScheduleSlotResponse(BaseModel):
     id: int
     slot_date: date
+    day_of_week: int
     start_time: time
     end_time: time
     status: SlotStatus

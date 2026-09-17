@@ -27,8 +27,8 @@ device connected to the same network, use the development machine's LAN IP,
 for example `http://10.235.75.138:8000`.
 
 - Health check: `GET /api/v1/health`
-- Register therapist: `POST /api/v1/auth/register`
-- Login therapist: `POST /api/v1/auth/login`
+- Register a therapist or patient: `POST /api/v1/auth/register`
+- Login a therapist or patient: `POST /api/v1/auth/login`
 - Swagger UI: `http://127.0.0.1:8000/docs`
 - OpenAPI schema: `http://127.0.0.1:8000/openapi.json`
 

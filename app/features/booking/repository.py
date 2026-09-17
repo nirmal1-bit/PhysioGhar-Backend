@@ -19,22 +19,24 @@ class BookingRepository:
                 SELECT t.id, t.name, t.username,
                        p.profile_image_url, p.experience_years,
                        p.specialization, p.address,
-                       s.id AS slot_id, s.slot_date,
+                       s.id AS slot_id, :selected_date AS slot_date,
                        s.start_time, s.end_time
-                FROM therapists t
+                FROM users t
                 JOIN therapist_availability a
                   ON a.therapist_id = t.id
                  AND a.is_available = TRUE
                 LEFT JOIN profiles p ON p.therapist_id = t.id
                 JOIN schedule_slots s
                   ON s.therapist_id = t.id
-                 AND s.slot_date = :selected_date
+                 AND s.day_of_week = EXTRACT(ISODOW FROM :selected_date)::INT - 1
                  AND s.status = 'open'
                 WHERE t.is_active = TRUE
+                  AND t.user_type = 'therapist'
                   AND NOT EXISTS (
                       SELECT 1
                       FROM bookings b
                       WHERE b.slot_id = s.id
+                        AND b.appointment_date = :selected_date
                         AND b.status NOT IN ('declined', 'cancelled')
                   )
                 ORDER BY t.name, s.start_time
@@ -53,17 +55,18 @@ class BookingRepository:
         result = await connection.execute(
             text(
                 """
-                SELECT s.id, s.slot_date, s.start_time, s.end_time
+                SELECT s.id, :selected_date AS slot_date, s.start_time, s.end_time
                 FROM schedule_slots s
                 JOIN therapist_availability a ON a.therapist_id = s.therapist_id
                 WHERE s.therapist_id = :therapist_id
-                  AND s.slot_date = :selected_date
+                  AND s.day_of_week = EXTRACT(ISODOW FROM :selected_date)::INT - 1
                   AND s.status = 'open'
                   AND a.is_available = TRUE
                   AND NOT EXISTS (
                       SELECT 1
                       FROM bookings b
                       WHERE b.slot_id = s.id
+                        AND b.appointment_date = :selected_date
                         AND b.status NOT IN ('declined', 'cancelled')
                   )
                 ORDER BY s.start_time
@@ -84,20 +87,49 @@ class BookingRepository:
         result = await connection.execute(
             text(
                 """
+                WITH patient AS (
+                    INSERT INTO patients (
+                        therapist_id, name, age, gender, email, phone, condition
+                    )
+                    VALUES (
+                        :therapist_id, :patient_name, :patient_age,
+                        :patient_gender, :patient_email, :patient_phone,
+                        COALESCE(:patient_condition, :treatment)
+                    )
+                    ON CONFLICT (therapist_id, email)
+                    WHERE email IS NOT NULL
+                    DO UPDATE SET
+                        name = EXCLUDED.name,
+                        age = COALESCE(EXCLUDED.age, patients.age),
+                        gender = COALESCE(EXCLUDED.gender, patients.gender),
+                        phone = EXCLUDED.phone,
+                        condition = EXCLUDED.condition,
+                        updated_at = NOW()
+                    RETURNING id
+                )
                 INSERT INTO bookings (
-                    therapist_id, slot_id, patient_name, patient_email,
-                    patient_phone, treatment, location
+                    therapist_id, patient_id, slot_id, appointment_date, patient_name,
+                    patient_email, patient_phone, treatment, location
                 )
                 SELECT
-                    :therapist_id, s.id, :patient_name, :patient_email,
-                    :patient_phone, :treatment, :location
+                    :therapist_id, patient.id, s.id, :slot_date, :patient_name,
+                    :patient_email, :patient_phone, :treatment, :location
                 FROM schedule_slots AS s
                 JOIN therapist_availability AS a
-                  ON a.therapist_id = s.therapist_id
+                 ON a.therapist_id = s.therapist_id
                  AND a.is_available = TRUE
+                CROSS JOIN patient
                 WHERE s.id = :slot_id
                   AND s.therapist_id = :therapist_id
+                  AND s.day_of_week = EXTRACT(ISODOW FROM :slot_date)::INT - 1
                   AND s.status = 'open'
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM bookings existing
+                      WHERE existing.slot_id = s.id
+                        AND existing.appointment_date = :slot_date
+                        AND existing.status NOT IN ('declined', 'cancelled')
+                  )
                 RETURNING id
                 """
             ),
@@ -109,10 +141,11 @@ class BookingRepository:
         result = await connection.execute(
             text(
                 """
-                SELECT b.id, b.therapist_id, b.slot_id, b.patient_name,
+                SELECT b.id, b.therapist_id, b.patient_id, b.slot_id,
+                       b.appointment_date AS slot_date, b.patient_name,
                        b.patient_email, b.patient_phone, b.treatment,
                        b.location, b.status, b.therapist_notes,
-                       s.slot_date, s.start_time,
+                       s.start_time,
                        s.end_time, b.created_at, b.updated_at
                 FROM bookings b
                 JOIN schedule_slots s ON s.id = b.slot_id
@@ -132,10 +165,11 @@ class BookingRepository:
         result = await connection.execute(
             text(
                 """
-                SELECT b.id, b.therapist_id, b.slot_id, b.patient_name,
+                SELECT b.id, b.therapist_id, b.patient_id, b.slot_id,
+                       b.appointment_date AS slot_date, b.patient_name,
                        b.patient_email, b.patient_phone, b.treatment,
                        b.location, b.status, b.therapist_notes,
-                       s.slot_date, s.start_time,
+                       s.start_time,
                        s.end_time, b.created_at, b.updated_at
                 FROM bookings b
                 JOIN schedule_slots s ON s.id = b.slot_id
@@ -144,7 +178,7 @@ class BookingRepository:
                       CAST(:booking_status AS VARCHAR) IS NULL
                       OR b.status = :booking_status
                   )
-                ORDER BY s.slot_date, s.start_time, b.created_at
+                ORDER BY b.appointment_date, s.start_time, b.created_at
                 """
             ),
             {"therapist_id": therapist_id, "booking_status": booking_status},
@@ -174,10 +208,11 @@ class BookingRepository:
                   AND b.id = :booking_id
                   AND b.therapist_id = :therapist_id
                   AND b.status IN ({allowed_from})
-                RETURNING b.id, b.therapist_id, b.slot_id, b.patient_name,
+                RETURNING b.id, b.therapist_id, b.patient_id, b.slot_id,
+                          b.appointment_date AS slot_date, b.patient_name,
                           b.patient_email, b.patient_phone, b.treatment,
                           b.location, b.status, b.therapist_notes,
-                          s.slot_date, s.start_time,
+                          s.start_time,
                           s.end_time, b.created_at, b.updated_at
                 """
             ),
@@ -191,31 +226,6 @@ class BookingRepository:
         if not booking:
             return None
 
-        if new_status == "accepted":
-            slot_result = await connection.execute(
-                text(
-                    """
-                    UPDATE schedule_slots
-                    SET status = 'booked', updated_at = NOW()
-                    WHERE id = :slot_id AND status = 'open'
-                    RETURNING id
-                    """
-                ),
-                {"slot_id": booking["slot_id"]},
-            )
-            if not slot_result.mappings().first():
-                return None
-        elif new_status == "cancelled":
-            await connection.execute(
-                text(
-                    """
-                    UPDATE schedule_slots
-                    SET status = 'open', updated_at = NOW()
-                    WHERE id = :slot_id AND status = 'booked'
-                    """
-                ),
-                {"slot_id": booking["slot_id"]},
-            )
         return dict(booking)
 
     async def reschedule(
@@ -224,11 +234,12 @@ class BookingRepository:
         therapist_id: int,
         booking_id: int,
         new_slot_id: int,
+        new_slot_date: date,
     ) -> dict[str, Any] | None:
         current_result = await connection.execute(
             text(
                 """
-                SELECT b.id, b.slot_id, b.status
+                SELECT b.id, b.slot_id, b.appointment_date, b.status
                 FROM bookings b
                 JOIN schedule_slots s ON s.id = b.slot_id
                 WHERE b.id = :booking_id
@@ -240,7 +251,10 @@ class BookingRepository:
             {"booking_id": booking_id, "therapist_id": therapist_id},
         )
         current = current_result.mappings().first()
-        if not current or current["slot_id"] == new_slot_id:
+        if not current or (
+            current["slot_id"] == new_slot_id
+            and current["appointment_date"] == new_slot_date
+        ):
             return None
 
         target_result = await connection.execute(
@@ -259,59 +273,59 @@ class BookingRepository:
         if not target or target["status"] != "open":
             return None
 
+        target_day_result = await connection.execute(
+            text(
+                """
+                SELECT day_of_week
+                FROM schedule_slots
+                WHERE id = :new_slot_id
+                """
+            ),
+            {"new_slot_id": new_slot_id},
+        )
+        target_day = target_day_result.scalar_one_or_none()
+        if target_day is None or target_day != new_slot_date.weekday():
+            return None
+
         active_booking = await connection.execute(
             text(
                 """
                 SELECT 1
                 FROM bookings
                 WHERE slot_id = :new_slot_id
+                  AND appointment_date = :new_slot_date
                   AND status NOT IN ('declined', 'cancelled')
                 """
             ),
-            {"new_slot_id": new_slot_id},
+            {"new_slot_id": new_slot_id, "new_slot_date": new_slot_date},
         )
         if active_booking.first():
             return None
-
-        if current["status"] == "accepted":
-            await connection.execute(
-                text(
-                    """
-                    UPDATE schedule_slots
-                    SET status = 'open', updated_at = NOW()
-                    WHERE id = :old_slot_id
-                    """
-                ),
-                {"old_slot_id": current["slot_id"]},
-            )
-            await connection.execute(
-                text(
-                    """
-                    UPDATE schedule_slots
-                    SET status = 'booked', updated_at = NOW()
-                    WHERE id = :new_slot_id
-                    """
-                ),
-                {"new_slot_id": new_slot_id},
-            )
 
         await connection.execute(
             text(
                 """
                 UPDATE bookings
-                SET slot_id = :new_slot_id, updated_at = NOW()
+                SET slot_id = :new_slot_id,
+                    appointment_date = :new_slot_date,
+                    updated_at = NOW()
                 WHERE id = :booking_id
                 """
             ),
-            {"booking_id": booking_id, "new_slot_id": new_slot_id},
+            {
+                "booking_id": booking_id,
+                "new_slot_id": new_slot_id,
+                "new_slot_date": new_slot_date,
+            },
         )
         result = await connection.execute(
             text(
                 """
-                SELECT b.id, b.therapist_id, b.slot_id, b.patient_name,
+                SELECT b.id, b.therapist_id, b.patient_id, b.slot_id,
+                       b.appointment_date AS slot_date, b.patient_name,
                        b.patient_email, b.patient_phone, b.treatment,
                        b.location, b.status, b.therapist_notes,
-                       s.slot_date, s.start_time, s.end_time,
+                       s.start_time, s.end_time,
                        b.created_at, b.updated_at
                 FROM bookings b
                 JOIN schedule_slots s ON s.id = b.slot_id
@@ -339,10 +353,11 @@ class BookingRepository:
                   AND b.id = :booking_id
                   AND b.therapist_id = :therapist_id
                   AND b.status IN ('pending', 'accepted', 'completed')
-                RETURNING b.id, b.therapist_id, b.slot_id, b.patient_name,
+                RETURNING b.id, b.therapist_id, b.patient_id, b.slot_id,
+                          b.appointment_date AS slot_date, b.patient_name,
                           b.patient_email, b.patient_phone, b.treatment,
                           b.location, b.status, b.therapist_notes,
-                          s.slot_date, s.start_time, s.end_time,
+                          s.start_time, s.end_time,
                           b.created_at, b.updated_at
                 """
             ),

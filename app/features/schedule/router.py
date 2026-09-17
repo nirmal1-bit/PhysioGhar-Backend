@@ -73,6 +73,7 @@ async def create_slot(
 async def update_slot_status(
     slot_id: int,
     request: UpdateSlotStatusRequest,
+    selected_date: date | None = Query(default=None, alias="date"),
     therapist_id: int = Depends(get_current_therapist_id),
 ) -> ScheduleSlotResponse | JSONResponse:
     try:
@@ -80,6 +81,7 @@ async def update_slot_status(
             therapist_id,
             slot_id,
             request.status,
+            selected_date or date.today(),
         )
     except SlotNotFoundError as error:
         return JSONResponse(

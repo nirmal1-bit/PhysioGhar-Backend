@@ -78,11 +78,34 @@ class ScheduleRepository:
             text(
                 """
                 SELECT id, slot_date, start_time, end_time, status,
-                       created_at, updated_at
-                FROM schedule_slots
+                       day_of_week, created_at, updated_at
+                FROM (
+                    SELECT s.id,
+                           s.therapist_id,
+                           (:week_start + s.day_of_week) AS slot_date,
+                           s.day_of_week,
+                           s.start_time,
+                           s.end_time,
+                           CASE
+                               WHEN s.status = 'blocked' THEN 'blocked'
+                               WHEN EXISTS (
+                                   SELECT 1
+                                   FROM bookings b
+                                   WHERE b.slot_id = s.id
+                                     AND b.appointment_date = (
+                                         :week_start + s.day_of_week
+                                     )
+                                     AND b.status NOT IN ('declined', 'cancelled')
+                               ) THEN 'booked'
+                               ELSE 'open'
+                           END AS status,
+                           s.created_at,
+                           s.updated_at
+                    FROM schedule_slots s
+                    WHERE s.therapist_id = :therapist_id
+                ) slots
                 WHERE therapist_id = :therapist_id
-                  AND slot_date BETWEEN :week_start AND :week_end
-                ORDER BY slot_date, start_time
+                ORDER BY day_of_week, start_time
                 """
             ),
             {
@@ -103,12 +126,20 @@ class ScheduleRepository:
             text(
                 """
                 INSERT INTO schedule_slots (
-                    therapist_id, slot_date, start_time, end_time
+                    therapist_id, day_of_week, start_time, end_time
                 )
                 VALUES (
-                    :therapist_id, :slot_date, :start_time, :end_time
+                    :therapist_id, :day_of_week, :start_time, :end_time
                 )
-                RETURNING id, slot_date, start_time, end_time, status,
+                RETURNING id,
+                          CURRENT_DATE + (
+                              (
+                                  day_of_week
+                                  - (EXTRACT(ISODOW FROM CURRENT_DATE)::INT - 1)
+                                  + 7
+                              ) % 7
+                          ) AS slot_date,
+                          day_of_week, start_time, end_time, status,
                           created_at, updated_at
                 """
             ),
@@ -122,6 +153,7 @@ class ScheduleRepository:
         therapist_id: int,
         slot_id: int,
         status: EditableSlotStatus,
+        selected_date: date,
     ) -> dict[str, Any] | None:
         result = await connection.execute(
             text(
@@ -130,7 +162,14 @@ class ScheduleRepository:
                 SET status = :status, updated_at = NOW()
                 WHERE id = :slot_id
                   AND therapist_id = :therapist_id
-                RETURNING id, slot_date, start_time, end_time, status,
+                RETURNING id,
+                          CAST(:selected_date AS DATE) -
+                              (
+                                  EXTRACT(ISODOW FROM CAST(:selected_date AS DATE))::INT
+                                  - 1
+                              ) +
+                              day_of_week AS slot_date,
+                          day_of_week, start_time, end_time, status,
                           created_at, updated_at
                 """
             ),
@@ -138,6 +177,7 @@ class ScheduleRepository:
                 "therapist_id": therapist_id,
                 "slot_id": slot_id,
                 "status": status,
+                "selected_date": selected_date,
             },
         )
         row = result.mappings().first()

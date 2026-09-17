@@ -84,6 +84,7 @@ class ScheduleService:
         therapist_id: int,
         slot_id: int,
         status: EditableSlotStatus,
+        selected_date: date,
     ) -> dict[str, Any]:
         async with get_engine().begin() as connection:
             slot = await self.repository.update_slot_status(
@@ -91,6 +92,7 @@ class ScheduleService:
                 therapist_id,
                 slot_id,
                 status,
+                selected_date,
             )
         if not slot:
             raise SlotNotFoundError("Schedule slot not found")

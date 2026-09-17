@@ -28,9 +28,13 @@ class AvailableTherapistResponse(BaseModel):
 class CreateBookingRequest(BaseModel):
     therapist_id: int = Field(gt=0)
     slot_id: int = Field(gt=0)
+    slot_date: date
     patient_name: str = Field(min_length=2, max_length=120)
     patient_email: EmailStr
     patient_phone: str = Field(min_length=1, max_length=32)
+    patient_age: int | None = Field(default=None, ge=0, le=150)
+    patient_gender: str | None = Field(default=None, max_length=32)
+    patient_condition: str | None = Field(default=None, max_length=255)
     treatment: str = Field(min_length=1, max_length=255)
     location: str = Field(min_length=1, max_length=500)
 
@@ -38,6 +42,7 @@ class CreateBookingRequest(BaseModel):
 class BookingResponse(BaseModel):
     id: int
     therapist_id: int
+    patient_id: int | None
     slot_id: int
     patient_name: str
     patient_email: EmailStr
@@ -59,6 +64,7 @@ class BookingStatusRequest(BaseModel):
 
 class RescheduleBookingRequest(BaseModel):
     slot_id: int = Field(gt=0)
+    slot_date: date
 
 
 class BookingNotesRequest(BaseModel):
