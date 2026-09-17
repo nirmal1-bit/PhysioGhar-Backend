@@ -194,14 +194,12 @@ class PatientRepository:
                     SELECT 1 FROM patients
                     WHERE id = :patient_id AND therapist_id = :therapist_id
                 )
-                  AND (
-                      CAST(:booking_id AS BIGINT) IS NULL
-                      OR EXISTS (
-                          SELECT 1 FROM bookings
-                          WHERE id = :booking_id
-                            AND therapist_id = :therapist_id
-                            AND patient_id = :patient_id
-                      )
+                  AND EXISTS (
+                      SELECT 1 FROM bookings
+                      WHERE id = :booking_id
+                        AND therapist_id = :therapist_id
+                        AND patient_id = :patient_id
+                        AND status IN ('accepted', 'completed')
                   )
                 RETURNING id, patient_id, booking_id, note, exercises,
                           next_session, created_at, updated_at
@@ -235,6 +233,13 @@ class PatientRepository:
                   AND n.id = :note_id
                   AND n.patient_id = :patient_id
                   AND p.therapist_id = :therapist_id
+                  AND EXISTS (
+                      SELECT 1 FROM bookings b
+                      WHERE b.id = n.booking_id
+                        AND b.patient_id = :patient_id
+                        AND b.therapist_id = :therapist_id
+                        AND b.status IN ('accepted', 'completed')
+                  )
                 RETURNING n.id, n.patient_id, n.booking_id, n.note,
                           n.exercises, n.next_session, n.created_at,
                           n.updated_at

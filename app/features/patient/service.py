@@ -89,7 +89,7 @@ class PatientService:
             )
         if not note:
             raise PatientNotFoundError(
-                "Patient or linked booking was not found"
+                "Notes require an accepted or completed session with this patient"
             )
         return note
 

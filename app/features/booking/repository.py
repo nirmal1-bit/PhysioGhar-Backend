@@ -28,7 +28,9 @@ class BookingRepository:
                 LEFT JOIN profiles p ON p.therapist_id = t.id
                 JOIN schedule_slots s
                   ON s.therapist_id = t.id
-                 AND s.day_of_week = EXTRACT(ISODOW FROM :selected_date)::INT - 1
+                 AND s.day_of_week = (
+                     EXTRACT(ISODOW FROM CAST(:selected_date AS DATE))::INT - 1
+                 )
                  AND s.status = 'open'
                 WHERE t.is_active = TRUE
                   AND t.user_type = 'therapist'
@@ -59,7 +61,9 @@ class BookingRepository:
                 FROM schedule_slots s
                 JOIN therapist_availability a ON a.therapist_id = s.therapist_id
                 WHERE s.therapist_id = :therapist_id
-                  AND s.day_of_week = EXTRACT(ISODOW FROM :selected_date)::INT - 1
+                  AND s.day_of_week = (
+                      EXTRACT(ISODOW FROM CAST(:selected_date AS DATE))::INT - 1
+                  )
                   AND s.status = 'open'
                   AND a.is_available = TRUE
                   AND NOT EXISTS (
@@ -121,7 +125,9 @@ class BookingRepository:
                 CROSS JOIN patient
                 WHERE s.id = :slot_id
                   AND s.therapist_id = :therapist_id
-                  AND s.day_of_week = EXTRACT(ISODOW FROM :slot_date)::INT - 1
+                  AND s.day_of_week = (
+                      EXTRACT(ISODOW FROM CAST(:slot_date AS DATE))::INT - 1
+                  )
                   AND s.status = 'open'
                   AND NOT EXISTS (
                       SELECT 1

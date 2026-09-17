@@ -34,7 +34,7 @@ class PatientNoteRequest(BaseModel):
     note: str = Field(min_length=1, max_length=10000)
     exercises: str | None = Field(default=None, max_length=10000)
     next_session: str | None = Field(default=None, max_length=2000)
-    booking_id: int | None = Field(default=None, gt=0)
+    booking_id: int = Field(gt=0)
 
 
 class PatientNoteResponse(PatientNoteRequest):
