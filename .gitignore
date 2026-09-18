@@ -8,6 +8,8 @@ htmlcov/
 .env
 .env.*
 !.env.example
+id.pem
+ipaddr.txt
 dist/
 build/
 *.egg-info/
